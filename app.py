@@ -6,7 +6,7 @@ from flask import Flask, jsonify, render_template, request
 
 # Constants
 API_URL = "https://isot.okte.sk/api/v1/dam/results"
-DATABASE = "C:\\Users\\pavel\\Documents\\dev\\elektrina-cena\\dam_data.db"
+DATABASE = ".\\dam_data.db"
 
 # Flask app
 app = Flask(__name__)

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 # Constants
 API_URL = "https://isot.okte.sk/api/v1/dam/results"
-DATABASE = "C:\\Users\\pavel\\Documents\\dev\\elektrina-cena\\dam_data.db"
+DATABASE = ".\\dam_data.db"
 #changed to your path
 
 def create_database():
