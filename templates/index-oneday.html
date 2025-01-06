@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM Data Viewer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Day-Ahead Market Data Viewer</h1>
+    <form id="dataForm">
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required>
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" required>
+        <button type="submit">Load Data</button>
+    </form>
+    <div id="chart"></div>
+    <script>
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const start_date = document.getElementById('start_date').value;
+            const end_date = document.getElementById('end_date').value;
+
+            const response = await fetch(`/api/data?start_date=${start_date}&end_date=${end_date}`);
+            const data = await response.json();
+
+            const groupedData = {};
+            data.forEach(item => {
+                if (!groupedData[item.deliveryDay]) {
+                    groupedData[item.deliveryDay] = { periods: [], prices: [] };
+                }
+                groupedData[item.deliveryDay].periods.push(item.period);
+                groupedData[item.deliveryDay].prices.push(item.price);
+            });
+
+            const traces = Object.keys(groupedData).map(day => ({
+                x: groupedData[day].periods,
+                y: groupedData[day].prices,
+                type: 'scatter',
+                name: day
+            }));
+
+            const layout = {
+                title: 'Price Trends by Delivery Day and Period',
+                xaxis: { title: 'Period' },
+                yaxis: { title: 'Price (€)' }
+            };
+
+            Plotly.newPlot('chart', traces, layout);
+        });
+    </script>
+</body>
+</html>
