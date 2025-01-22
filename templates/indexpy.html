@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>DAM Data Viewer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Cena elektriny na SK spote (okte.sk)</h1>
+    <form id="dataForm">
+        <label for="start_date">Od</label>
+        <input type="date" id="start_date" name="start_date" required>
+        <label for="end_date">Do</label>
+        <input type="date" id="end_date" name="end_date" required>
+        <button type="submit">Nahraj Data</button>
+    </form>
+    <div id="stats" style="margin-top: 30px; display: flex; justify-content: space-around; gap: 20px;">
+        <p>Min: <span id="min"></span> € </p>
+        <p>Max: <span id="max"></span> € </p>
+        <p>Priemer: <span id="average"></span> € </p>
+        <p>Median: <span id="median"></span> € </p>
+    </div>
+    <div id="chart"></div>
+    <script>
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const start_date = document.getElementById('start_date').value;
+            const end_date = document.getElementById('end_date').value;
+
+            const response = await fetch(`/api/data?start_date=${start_date}&end_date=${end_date}`);
+            const data = await response.json();
+
+            const dates = data.map(item => item.deliveryDay);
+            const prices = data.map(item => item.price);
+
+            const trace = {
+                x: dates,
+                y: prices,
+                type: 'scatter'
+            };
+
+            const layout = {
+                title: 'Cena v období',
+                xaxis: { title: 'Date' },
+                yaxis: { title: 'Price (€)' }
+            };
+
+            Plotly.newPlot('chart', [trace], layout);
+            function calculateMedian(values) {
+                values.sort((a, b) => a - b);
+                const mid = Math.floor(values.length / 2);
+                return values.length % 2 !== 0
+                    ? values[mid]
+                    : (values[mid - 1] + values[mid]) / 2;
+            }
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const average = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const median = calculateMedian(prices);
+             // Zobrazenie výsledkov
+            document.getElementById('min').textContent = min.toFixed(2);
+            document.getElementById('max').textContent = max.toFixed(2);
+            document.getElementById('average').textContent = average.toFixed(2);
+            document.getElementById('median').textContent = median.toFixed(2);
+        });
+    </script>
+</body>
+</html>

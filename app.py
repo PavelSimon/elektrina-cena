@@ -83,7 +83,7 @@ def get_data():
 @app.route("/")
 def index():
     """Render the main page."""
-    return render_template("index.html")
+    return render_template("indexpy.html")
 
 if __name__ == "__main__":
     create_database()
