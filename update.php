@@ -16,6 +16,11 @@ try {
     $start_date = date('Y-m-d', strtotime($last_date . ' +1 day'));
     $end_date = date('Y-m-d');
 
+    // Check if it's after 13:00, then include next day in fetch
+    if ((int)date('H') >= 13) {
+        $end_date = date('Y-m-d', strtotime($end_date . ' +1 day'));
+    }
+
     // Fetch data from API only for missing dates
     if ($start_date > $end_date) {
         echo "Nie sú žiadne nové údaje";
