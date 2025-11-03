@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM Data Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Day-Ahead Market Data Viewer</h1>
+    <form id="dataForm">
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required>
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" required>
+        <button type="submit">Load Data</button>
+        <button type="button" id="updateData">Aktualizuj dáta k dnešku</button>
+        <p id="updateStatus"></p>
+    </form>
+    <div id="stats" style="margin-top: 30px; display: flex; justify-content: space-around; gap: 20px;">
+        <p>Min: <span id="min"></span> € </p>
+        <p>Max: <span id="max"></span> € </p>
+        <p>Priemer: <span id="average"></span> € </p>
+        <p>Median: <span id="median"></span> € </p>
+    </div>
+    <canvas id="chart" width="800" height="400"></canvas>
+    
+    <script>
+        let chart;
+
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const start_date = document.getElementById('start_date').value;
+            const end_date = document.getElementById('end_date').value;
+
+            const response = await fetch(`api.php?start_date=${start_date}&end_date=${end_date}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert(`Error: ${data.error}`);
+                return;
+            }
+
+            const labels = data.map(entry => `${entry.deliveryDay} Period ${entry.period}`);
+            const prices = data.map(entry => entry.price);
+
+            const ctx = document.getElementById('chart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price',
+                        data: prices,
+                        fill: false,
+                        borderColor: 'blue',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Day-Ahead Market Prices (Continuous)'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Delivery Day and Period'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Price (€)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            function calculateMedian(values) {
+                values.sort((a, b) => a - b);
+                const mid = Math.floor(values.length / 2);
+                return values.length % 2 !== 0
+                    ? values[mid]
+                    : (values[mid - 1] + values[mid]) / 2;
+            }
+
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const average = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const median = calculateMedian(prices);
+
+            document.getElementById('min').textContent = min.toFixed(2);
+            document.getElementById('max').textContent = max.toFixed(2);
+            document.getElementById('average').textContent = average.toFixed(2);
+            document.getElementById('median').textContent = median.toFixed(2);
+        });
+
+        document.getElementById('updateData').addEventListener('click', async () => {
+            document.getElementById('updateStatus').innerText = 'Updating data...';
+            const response = await fetch('update.php');
+            const result = await response.text();
+            document.getElementById('updateStatus').innerText = result;
+        });
+    </script>
+</body>
+</html>

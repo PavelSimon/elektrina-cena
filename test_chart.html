@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chart - Line vs Histogram</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .chart-container {
+            position: relative;
+            height: 60vh;
+            min-height: 400px;
+            max-height: 800px;
+            width: 100%;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        h1 {
+            text-align: center;
+            font-size: clamp(1.5rem, 4vw, 2rem);
+        }
+        .button-container {
+            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            button {
+                padding: 8px 15px;
+                font-size: 12px;
+                width: 100%;
+            }
+            .chart-container {
+                height: 50vh;
+                min-height: 300px;
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Test grafu cien elektriny</h1>
+
+    <div class="button-container">
+        <button onclick="showLineChart()">Čiarový graf (správne)</button>
+        <button onclick="showBarChart()">Stĺpcový graf (histogram)</button>
+        <button onclick="showBadLineChart()">Zlý čiarový graf (vyzerá ako histogram)</button>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="testChart"></canvas>
+    </div>
+
+    <script>
+        // Mock data - 2 days, 24 periods each = 48 data points
+        const mockData = [];
+        for (let day = 0; day < 2; day++) {
+            const baseDate = new Date(2025, 0, 20 + day);
+            const dateStr = baseDate.toISOString().split('T')[0];
+
+            for (let period = 1; period <= 24; period++) {
+                // Simulate price variations - higher during peak hours
+                let price = 100;
+                if (period >= 7 && period <= 9) price = 200 + Math.random() * 100;  // Morning peak
+                else if (period >= 17 && period <= 20) price = 250 + Math.random() * 150; // Evening peak
+                else price = 80 + Math.random() * 50; // Off-peak
+
+                mockData.push({
+                    deliveryDay: dateStr,
+                    period: period,
+                    price: price
+                });
+            }
+        }
+
+        let chart;
+
+        function showLineChart() {
+            const labels = mockData.map((entry, index) => {
+                if (entry.period === 1) return entry.deliveryDay;
+                return '';
+            });
+            const fullLabels = mockData.map(e => `${e.deliveryDay} ${String(e.period).padStart(2, '0')}:00`);
+            const prices = mockData.map(e => e.price);
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('testChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cena (€/MWh) - Čiarový graf',
+                        data: prices,
+                        fill: false,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    elements: {
+                        line: { borderWidth: 1.5, tension: 0.1 },
+                        point: { radius: 0, hitRadius: 10, hoverRadius: 5 }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'SPRÁVNY čiarový graf - plynulá čiara' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: ctx => fullLabels[ctx[0].dataIndex],
+                                label: ctx => 'Cena: ' + ctx.parsed.y.toFixed(2) + ' €/MWh'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Dátum' },
+                            ticks: {
+                                callback: function(value, index) {
+                                    const label = this.getLabelForValue(value);
+                                    return label !== '' ? label : undefined;
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Cena (€/MWh)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showBarChart() {
+            const labels = mockData.map(e => `${e.deliveryDay} P${e.period}`);
+            const prices = mockData.map(e => e.price);
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('testChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',  // BAR TYPE - this is a histogram/bar chart
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cena (€/MWh) - Stĺpcový graf',
+                        data: prices,
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'HISTOGRAM/STĹPCOVÝ graf - toto je zlé' }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Dátum a perioda' },
+                            ticks: { maxTicksLimit: 10 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Cena (€/MWh)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showBadLineChart() {
+            const labels = mockData.map(e => `${e.deliveryDay} Period ${e.period}`);
+            const prices = mockData.map(e => e.price);
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('testChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cena (€/MWh)',
+                        data: prices,
+                        fill: false,
+                        borderColor: 'blue',
+                        tension: 0.1,
+                        pointRadius: 3,  // VISIBLE POINTS
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'ZLÝ čiarový graf - príliš husté body vyzerajú ako histogram' }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Dátum a perioda' },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Cena (€/MWh)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Show correct line chart by default
+        showLineChart();
+    </script>
+</body>
+</html>
