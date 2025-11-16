@@ -30,6 +30,90 @@
             background-color: #0056b3;
         }
 
+        #helpButton {
+            position: absolute;
+            top: 10px;
+            right: 90px;
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        #helpButton:hover {
+            background-color: #218838;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 28px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+
+        .modal-body {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .modal-body a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .modal-body a:hover {
+            text-decoration: underline;
+        }
+
         h1 {
             font-size: clamp(1.5rem, 4vw, 2.5rem);
             margin-bottom: 20px;
@@ -108,6 +192,23 @@
                 font-size: 0.9rem;
             }
 
+            #helpButton {
+                top: 5px;
+                right: 75px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            .modal-content {
+                margin: 20% auto;
+                padding: 20px;
+                width: 95%;
+            }
+
+            .modal-body {
+                font-size: 1rem;
+            }
+
             #dataForm {
                 flex-direction: column;
                 align-items: stretch;
@@ -139,16 +240,32 @@
 </head>
 <body>
     <h1>Day-Ahead Market Data Viewer</h1>
+    <button type="button" id="helpButton">Help</button>
     <a href="https://www.energiaweb.energy/">
         <button  type="submit" id="backButton">Back</button>
     </a>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Popis</h2>
+                <button class="close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Zobrazenie dát o pohybu SPOTových cien elektriny na <a href="https://okte.sk" target="_blank">OKTE.sk</a></p>
+            </div>
+        </div>
+    </div>
     <form id="dataForm">
-        <button type="button" id="prevPeriod" title="Predchádzajúce obdobie">◄</button>
+        <button type="button" id="prevPeriod" title="Predchádzajúce obdobie">◄◄</button>
+        <button type="button" id="prevDay" title="Predchádzajúci deň">◄</button>
         <label for="start_date">Start Date:</label>
         <input type="date" id="start_date" name="start_date" required>
         <label for="end_date">End Date:</label>
         <input type="date" id="end_date" name="end_date" required>
-        <button type="button" id="nextPeriod" title="Nasledujúce obdobie">►</button>
+        <button type="button" id="nextDay" title="Nasledujúci deň">►</button>
+        <button type="button" id="nextPeriod" title="Nasledujúce obdobie">►►</button>
         <button type="submit">Load Data</button>
         <button type="button" id="updateData">Aktualizuj dáta k dnešku</button>
         <p id="updateStatus"></p>
@@ -337,7 +454,7 @@
             document.getElementById('updateStatus').innerText = result;
         });
 
-        // Function to shift date interval
+        // Function to shift date interval by full period
         function shiftDateInterval(direction) {
             const startInput = document.getElementById('start_date');
             const endInput = document.getElementById('end_date');
@@ -367,12 +484,66 @@
             document.getElementById('dataForm').requestSubmit();
         }
 
+        // Function to shift date interval by one day
+        function shiftDateByDay(direction) {
+            const startInput = document.getElementById('start_date');
+            const endInput = document.getElementById('end_date');
+
+            if (!startInput.value || !endInput.value) {
+                alert('Prosím, najprv vyberte dátumy');
+                return;
+            }
+
+            const startDate = new Date(startInput.value);
+            const endDate = new Date(endInput.value);
+
+            // Shift both dates by one day
+            const shiftDays = direction === 'prev' ? -1 : 1;
+
+            startDate.setDate(startDate.getDate() + shiftDays);
+            endDate.setDate(endDate.getDate() + shiftDays);
+
+            // Format dates as YYYY-MM-DD
+            startInput.value = startDate.toISOString().split('T')[0];
+            endInput.value = endDate.toISOString().split('T')[0];
+
+            // Submit form to load new data
+            document.getElementById('dataForm').requestSubmit();
+        }
+
         document.getElementById('prevPeriod').addEventListener('click', () => {
             shiftDateInterval('prev');
         });
 
         document.getElementById('nextPeriod').addEventListener('click', () => {
             shiftDateInterval('next');
+        });
+
+        document.getElementById('prevDay').addEventListener('click', () => {
+            shiftDateByDay('prev');
+        });
+
+        document.getElementById('nextDay').addEventListener('click', () => {
+            shiftDateByDay('next');
+        });
+
+        // Help modal functionality
+        const modal = document.getElementById('helpModal');
+        const helpBtn = document.getElementById('helpButton');
+        const closeBtn = document.querySelector('.close');
+
+        helpBtn.addEventListener('click', () => {
+            modal.style.display = 'block';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
         });
     </script>
 </body>
