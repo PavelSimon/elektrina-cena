@@ -1,1 +1,339 @@
-dakujem
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM Data Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            padding: 20px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        #backButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        #backButton:hover {
+            background-color: #0056b3;
+        }
+
+        h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 20px;
+        }
+
+        #dataForm {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #dataForm label {
+            margin-right: 5px;
+        }
+
+        #dataForm input[type="date"] {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #dataForm button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        #dataForm button:hover {
+            background-color: #0056b3;
+        }
+
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        #stats p {
+            margin: 0;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        #stats span {
+            color: #007bff;
+            font-size: 1.2em;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 60vh;
+            min-height: 400px;
+            max-height: 800px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            #backButton {
+                top: 5px;
+                right: 5px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            #dataForm {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #dataForm input[type="date"],
+            #dataForm button {
+                width: 100%;
+            }
+
+            #stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                padding: 10px;
+            }
+
+            .chart-container {
+                height: 50vh;
+                min-height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Day-Ahead Market Data Viewer</h1>
+    <a href="https://www.energiaweb.energy/">
+        <button  type="submit" id="backButton">Back</button>
+    </a>
+    <form id="dataForm">
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required>
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" required>
+        <button type="submit">Load Data</button>
+        <button type="button" id="updateData">Aktualizuj dáta k dnešku</button>
+        <p id="updateStatus"></p>
+    </form>
+    <div id="stats">
+        <p>Min: <span id="min"></span> €</p>
+        <p>Max: <span id="max"></span> €</p>
+        <p>Priemer: <span id="average"></span> €</p>
+        <p>Median: <span id="median"></span> €</p>
+    </div>
+    <div class="chart-container">
+        <canvas id="chart"></canvas>
+    </div>
+    
+    <script>
+        let chart;
+
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const start_date = document.getElementById('start_date').value;
+            const end_date = document.getElementById('end_date').value;
+
+            const response = await fetch(`api.php?start_date=${start_date}&end_date=${end_date}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert(`Error: ${data.error}`);
+                return;
+            }
+
+            // Create labels with better formatting
+            const labels = data.map((entry, index) => {
+                // Show date only at the start of each day (period 1)
+                if (entry.period === 1 || entry.period === '1') {
+                    return `${entry.deliveryDay}`;
+                }
+                return '';  // Empty for other periods to reduce clutter
+            });
+
+            // Create data points with x-axis as continuous index
+            const prices = data.map(entry => entry.price);
+
+            // Store full labels for tooltips
+            const fullLabels = data.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
+
+            const ctx = document.getElementById('chart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cena (€/MWh)',
+                        data: prices,
+                        fill: false,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: 'rgb(75, 192, 192)',
+                        borderWidth: 1.5,
+                        spanGaps: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    elements: {
+                        line: {
+                            borderWidth: 1.5,
+                            tension: 0.1
+                        },
+                        point: {
+                            radius: 0,
+                            hitRadius: 10,
+                            hoverRadius: 5
+                        }
+                    },
+                    parsing: true,
+                    normalized: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ceny na dennom trhu s elektrinou',
+                            font: {
+                                size: window.innerWidth < 768 ? 14 : 16
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return fullLabels[context[0].dataIndex];
+                                },
+                                label: function(context) {
+                                    return 'Cena: ' + context.parsed.y.toFixed(2) + ' €/MWh';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Dátum',
+                                font: {
+                                    size: window.innerWidth < 768 ? 10 : 12
+                                }
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                minRotation: 0,
+                                autoSkip: false,
+                                font: {
+                                    size: window.innerWidth < 768 ? 9 : 11
+                                },
+                                callback: function(value, index, ticks) {
+                                    // Only show non-empty labels
+                                    const label = this.getLabelForValue(value);
+                                    return label !== '' ? label : undefined;
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                drawOnChartArea: true
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cena (€/MWh)',
+                                font: {
+                                    size: window.innerWidth < 768 ? 10 : 12
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: window.innerWidth < 768 ? 9 : 11
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+            
+            function calculateMedian(values) {
+                // Create a copy to avoid mutating the original array
+                const sorted = [...values].sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                return sorted.length % 2 !== 0
+                    ? sorted[mid]
+                    : (sorted[mid - 1] + sorted[mid]) / 2;
+            }
+
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const average = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const median = calculateMedian(prices);
+
+            document.getElementById('min').textContent = min.toFixed(2);
+            document.getElementById('max').textContent = max.toFixed(2);
+            document.getElementById('average').textContent = average.toFixed(2);
+            document.getElementById('median').textContent = median.toFixed(2);
+        });
+
+        document.getElementById('updateData').addEventListener('click', async () => {
+            document.getElementById('updateStatus').innerText = 'Updating data...';
+            const response = await fetch('update.php');
+            const result = await response.text();
+            document.getElementById('updateStatus').innerText = result;
+        });
+    </script>
+</body>
+</html>
