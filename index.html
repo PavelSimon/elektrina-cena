@@ -150,7 +150,7 @@
             background-color: #0056b3;
         }
 
-        #stats {
+        #stats, #prevStats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 15px;
@@ -160,7 +160,7 @@
             border-radius: 8px;
         }
 
-        #stats p {
+        #stats p, #prevStats p {
             margin: 0;
             font-weight: bold;
             text-align: center;
@@ -169,6 +169,16 @@
         #stats span {
             color: #007bff;
             font-size: 1.2em;
+        }
+
+        #prevStats span {
+            color: #dc3545;
+            font-size: 1.2em;
+        }
+
+        #prevStats p:first-child {
+            grid-column: 1 / -1;
+            text-align: left;
         }
 
         .chart-container {
@@ -219,7 +229,7 @@
                 width: 100%;
             }
 
-            #stats {
+            #stats, #prevStats {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 10px;
@@ -232,7 +242,7 @@
         }
 
         @media (max-width: 480px) {
-            #stats {
+            #stats, #prevStats {
                 grid-template-columns: 1fr;
             }
         }
@@ -276,6 +286,13 @@
         <p>Priemer: <span id="average"></span> €</p>
         <p>Median: <span id="median"></span> €</p>
     </div>
+    <div id="prevStats" style="display: none;">
+        <p style="margin-bottom: 10px; font-weight: bold; color: #666;">Predchádzajúce obdobie:</p>
+        <p>Min: <span id="prevMin"></span> €</p>
+        <p>Max: <span id="prevMax"></span> €</p>
+        <p>Priemer: <span id="prevAverage"></span> €</p>
+        <p>Median: <span id="prevMedian"></span> €</p>
+    </div>
     <div class="chart-container">
         <canvas id="chart"></canvas>
     </div>
@@ -283,12 +300,27 @@
     <script>
         let chart;
 
+        // Load dates from URL parameters on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startDate = urlParams.get('start_date');
+            const endDate = urlParams.get('end_date');
+
+            if (startDate && endDate) {
+                document.getElementById('start_date').value = startDate;
+                document.getElementById('end_date').value = endDate;
+                // Automatically load data if dates are provided in URL
+                document.getElementById('dataForm').requestSubmit();
+            }
+        });
+
         document.getElementById('dataForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const start_date = document.getElementById('start_date').value;
             const end_date = document.getElementById('end_date').value;
 
+            // Fetch current interval data
             const response = await fetch(`api.php?start_date=${start_date}&end_date=${end_date}`);
             const data = await response.json();
 
@@ -296,6 +328,25 @@
                 alert(`Error: ${data.error}`);
                 return;
             }
+
+            // Calculate previous interval dates
+            const startDateObj = new Date(start_date);
+            const endDateObj = new Date(end_date);
+            const intervalDays = Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
+
+            const prevEndDate = new Date(startDateObj);
+            prevEndDate.setDate(prevEndDate.getDate() - 1);
+            const prevStartDate = new Date(prevEndDate);
+            prevStartDate.setDate(prevStartDate.getDate() - intervalDays + 1);
+
+            const prevStartStr = prevStartDate.toISOString().split('T')[0];
+            const prevEndStr = prevEndDate.toISOString().split('T')[0];
+
+            // Fetch previous interval data
+            const prevResponse = await fetch(`api.php?start_date=${prevStartStr}&end_date=${prevEndStr}`);
+            const prevData = await prevResponse.json();
+
+            const hasPrevData = !prevData.error && prevData.length > 0;
 
             // Create labels with better formatting
             const labels = data.map((entry, index) => {
@@ -312,6 +363,43 @@
             // Store full labels for tooltips
             const fullLabels = data.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
 
+            // Prepare datasets
+            const datasets = [{
+                label: `Aktuálne obdobie (${start_date} - ${end_date})`,
+                data: prices,
+                fill: false,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: 'rgb(75, 192, 192)',
+                borderWidth: 1.5,
+                spanGaps: false
+            }];
+
+            // Add previous interval if data exists
+            let prevFullLabels = [];
+            if (hasPrevData) {
+                const prevPrices = prevData.map(entry => entry.price);
+                prevFullLabels = prevData.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
+
+                datasets.push({
+                    label: `Predchádzajúce obdobie (${prevStartStr} - ${prevEndStr})`,
+                    data: prevPrices,
+                    fill: false,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: 'rgb(255, 99, 132)',
+                    borderWidth: 1.5,
+                    borderDash: [5, 5], // Dashed line
+                    spanGaps: false
+                });
+            }
+
             const ctx = document.getElementById('chart').getContext('2d');
 
             if (chart) {
@@ -322,19 +410,7 @@
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: 'Cena (€/MWh)',
-                        data: prices,
-                        fill: false,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.1,
-                        pointRadius: 0,
-                        pointHoverRadius: 5,
-                        pointHoverBackgroundColor: 'rgb(75, 192, 192)',
-                        borderWidth: 1.5,
-                        spanGaps: false
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -355,6 +431,17 @@
                     plugins: {
                         legend: {
                             position: 'top',
+                            onClick: (e, legendItem, legend) => {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                if (ci.isDatasetVisible(index)) {
+                                    ci.hide(index);
+                                    legendItem.hidden = true;
+                                } else {
+                                    ci.show(index);
+                                    legendItem.hidden = false;
+                                }
+                            }
                         },
                         title: {
                             display: true,
@@ -368,10 +455,17 @@
                             intersect: false,
                             callbacks: {
                                 title: function(context) {
-                                    return fullLabels[context[0].dataIndex];
+                                    const datasetIndex = context[0].datasetIndex;
+                                    const dataIndex = context[0].dataIndex;
+                                    if (datasetIndex === 0) {
+                                        return fullLabels[dataIndex];
+                                    } else if (datasetIndex === 1 && hasPrevData) {
+                                        return prevFullLabels[dataIndex];
+                                    }
+                                    return '';
                                 },
                                 label: function(context) {
-                                    return 'Cena: ' + context.parsed.y.toFixed(2) + ' €/MWh';
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €/MWh';
                                 }
                             }
                         }
@@ -445,6 +539,23 @@
             document.getElementById('max').textContent = max.toFixed(2);
             document.getElementById('average').textContent = average.toFixed(2);
             document.getElementById('median').textContent = median.toFixed(2);
+
+            // Calculate and display previous interval stats if available
+            if (hasPrevData) {
+                const prevPrices = prevData.map(entry => entry.price);
+                const prevMin = Math.min(...prevPrices);
+                const prevMax = Math.max(...prevPrices);
+                const prevAverage = prevPrices.reduce((a, b) => a + b, 0) / prevPrices.length;
+                const prevMedian = calculateMedian(prevPrices);
+
+                document.getElementById('prevMin').textContent = prevMin.toFixed(2);
+                document.getElementById('prevMax').textContent = prevMax.toFixed(2);
+                document.getElementById('prevAverage').textContent = prevAverage.toFixed(2);
+                document.getElementById('prevMedian').textContent = prevMedian.toFixed(2);
+                document.getElementById('prevStats').style.display = 'grid';
+            } else {
+                document.getElementById('prevStats').style.display = 'none';
+            }
         });
 
         document.getElementById('updateData').addEventListener('click', async () => {
