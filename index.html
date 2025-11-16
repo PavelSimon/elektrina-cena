@@ -143,10 +143,12 @@
         <button  type="submit" id="backButton">Back</button>
     </a>
     <form id="dataForm">
+        <button type="button" id="prevPeriod" title="Predchádzajúce obdobie">◄</button>
         <label for="start_date">Start Date:</label>
         <input type="date" id="start_date" name="start_date" required>
         <label for="end_date">End Date:</label>
         <input type="date" id="end_date" name="end_date" required>
+        <button type="button" id="nextPeriod" title="Nasledujúce obdobie">►</button>
         <button type="submit">Load Data</button>
         <button type="button" id="updateData">Aktualizuj dáta k dnešku</button>
         <p id="updateStatus"></p>
@@ -333,6 +335,44 @@
             const response = await fetch('update.php');
             const result = await response.text();
             document.getElementById('updateStatus').innerText = result;
+        });
+
+        // Function to shift date interval
+        function shiftDateInterval(direction) {
+            const startInput = document.getElementById('start_date');
+            const endInput = document.getElementById('end_date');
+
+            if (!startInput.value || !endInput.value) {
+                alert('Prosím, najprv vyberte dátumy');
+                return;
+            }
+
+            const startDate = new Date(startInput.value);
+            const endDate = new Date(endInput.value);
+
+            // Calculate interval duration in days
+            const intervalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+            // Shift both dates by the interval
+            const shiftDays = direction === 'prev' ? -intervalDays : intervalDays;
+
+            startDate.setDate(startDate.getDate() + shiftDays);
+            endDate.setDate(endDate.getDate() + shiftDays);
+
+            // Format dates as YYYY-MM-DD
+            startInput.value = startDate.toISOString().split('T')[0];
+            endInput.value = endDate.toISOString().split('T')[0];
+
+            // Submit form to load new data
+            document.getElementById('dataForm').requestSubmit();
+        }
+
+        document.getElementById('prevPeriod').addEventListener('click', () => {
+            shiftDateInterval('prev');
+        });
+
+        document.getElementById('nextPeriod').addEventListener('click', () => {
+            shiftDateInterval('next');
         });
     </script>
 </body>
