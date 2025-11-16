@@ -300,6 +300,40 @@
     <script>
         let chart;
 
+        // Plugin to draw weekend backgrounds
+        const weekendBackgroundPlugin = {
+            id: 'weekendBackground',
+            beforeDraw: (chart) => {
+                const ctx = chart.ctx;
+                const chartArea = chart.chartArea;
+                const meta = chart.getDatasetMeta(0);
+
+                if (!meta || !meta.data || meta.data.length === 0) return;
+
+                ctx.save();
+
+                // Get the data and find weekend periods
+                const data = chart.data.datasets[0]._weekendData || [];
+
+                data.forEach(weekend => {
+                    if (weekend.startIndex !== undefined && weekend.endIndex !== undefined) {
+                        const startPoint = meta.data[weekend.startIndex];
+                        const endPoint = meta.data[weekend.endIndex];
+
+                        if (startPoint && endPoint) {
+                            const x1 = startPoint.x;
+                            const x2 = endPoint.x;
+
+                            ctx.fillStyle = 'rgba(200, 200, 200, 0.15)';
+                            ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+                        }
+                    }
+                });
+
+                ctx.restore();
+            }
+        };
+
         // Load dates from URL parameters on page load
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -363,6 +397,35 @@
             // Store full labels for tooltips
             const fullLabels = data.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
 
+            // Identify weekends for background shading
+            const weekendData = [];
+            let currentWeekend = null;
+
+            data.forEach((entry, index) => {
+                const date = new Date(entry.deliveryDay);
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    // It's a weekend
+                    if (currentWeekend === null) {
+                        currentWeekend = { startIndex: index, endIndex: index };
+                    } else {
+                        currentWeekend.endIndex = index;
+                    }
+                } else {
+                    // It's a weekday
+                    if (currentWeekend !== null) {
+                        weekendData.push(currentWeekend);
+                        currentWeekend = null;
+                    }
+                }
+            });
+
+            // Don't forget to add the last weekend if it extends to the end
+            if (currentWeekend !== null) {
+                weekendData.push(currentWeekend);
+            }
+
             // Prepare datasets
             const datasets = [{
                 label: `Aktuálne obdobie (${start_date} - ${end_date})`,
@@ -375,7 +438,8 @@
                 pointHoverRadius: 5,
                 pointHoverBackgroundColor: 'rgb(75, 192, 192)',
                 borderWidth: 1.5,
-                spanGaps: false
+                spanGaps: false,
+                _weekendData: weekendData
             }];
 
             // Add previous interval if data exists
@@ -412,6 +476,7 @@
                     labels: labels,
                     datasets: datasets
                 },
+                plugins: [weekendBackgroundPlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
