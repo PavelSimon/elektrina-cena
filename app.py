@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template, request
+from update_db import update_database
 
 # Constants
 API_URL = "https://isot.okte.sk/api/v1/dam/results"
@@ -77,8 +78,23 @@ def get_data():
     """API endpoint to fetch data from the database."""
     start_date = request.args.get("start_date", "2009-09-01")
     end_date = request.args.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-    df = fetch_data_from_db(start_date, end_date)
-    return df.to_json(orient="records")
+
+    try:
+        df = fetch_data_from_db(start_date, end_date)
+        if df.empty:
+            return jsonify({"error": "No data found for the specified date range"}), 404
+        return df.to_json(orient="records")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/update", methods=["GET"])
+def update_data():
+    """API endpoint to update database with latest data."""
+    try:
+        update_database()
+        return "Databáza bola úspešne aktualizovaná!", 200
+    except Exception as e:
+        return f"Chyba pri aktualizácii: {str(e)}", 500
 
 @app.route("/")
 def index():
