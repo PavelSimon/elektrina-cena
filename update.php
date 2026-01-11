@@ -17,7 +17,7 @@ try {
     $end_date = date('Y-m-d');
 
     // Check if it's after 13:00, then include next day in fetch
-    if ((int)date('H') >= 13) {
+    if ((int) date('H') >= 13) {
         $end_date = date('Y-m-d', strtotime($end_date . ' +1 day'));
     }
 
@@ -26,14 +26,29 @@ try {
         echo "Nie sú žiadne nové údaje";
         exit;
     }
-    
+
     $api_request = "$api_url?deliveryDayFrom=$start_date&deliveryDayTo=$end_date";
-    print_r($api_request);
-    $response = file_get_contents($api_request);
+    print_r($api_request . "\n");
+
+    $options = [
+        "http" => [
+            "method" => "GET",
+            "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\r\n" .
+                "Accept: application/json\r\n"
+        ],
+        "ssl" => [
+            "verify_peer" => false,
+            "verify_peer_name" => false,
+        ]
+    ];
+    $context = stream_context_create($options);
+
+    $response = file_get_contents($api_request, false, $context);
     if ($response === false) {
-        throw new Exception("Failed to fetch data from API.");
+        $error = error_get_last();
+        throw new Exception("Failed to fetch data from API. PHP Error: " . $error['message']);
     }
-    
+
     $data = json_decode($response, true);
     if (!is_array($data)) {
         throw new Exception("Invalid API response format.");
