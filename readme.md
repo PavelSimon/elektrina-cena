@@ -4,4 +4,10 @@ Aplikicia (**dam_api3.py**) na stiahnutie údajov z slovenského spotového trhu
 
 **update_db.py** zasa slúži na pridanie nových dát do databáze
 
-Funkčný výtvor web interface prepísaný do PHP je na [Energiaweb.energy](https://energiaweb.energy/fullscreen-mapy/)
+## PHP verzia
+
+Funkčný web interface prepísaný do PHP je na [Energiaweb.energy](https://energiaweb.energy/fullscreen-mapy/)
+
+**update.php** - aktualizuje databázu cez proxy (OKTE API blokuje niektoré hostingy)
+
+**proxy.php** - proxy skript na creativespace.sk pre presmerovanie API volaní
