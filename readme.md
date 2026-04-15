@@ -14,7 +14,7 @@ Funkčný web interface prepísaný do PHP je na [Energiaweb.energy](https://ene
 
 ## Frontend (index.html)
 
-Štruktúra je rozdelená na `index.html` + `styles.css` + `app.js`.
+Štruktúra je rozdelená na `index.html` + `styles.css` + `app.js`. Pri zmene v `app.js` alebo `styles.css` zvýš `?v=N` v `index.html`, aby prehliadač obišiel cache.
 
 Graf (Chart.js) zobrazuje 15-minútové periódy (1..96 za deň, 100 pri DST). Vedľajšie vlastnosti:
 
