@@ -282,11 +282,15 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     const max = Math.max(...prices);
     const average = prices.reduce((a, b) => a + b, 0) / prices.length;
     const median = calculateMedian(prices);
+    const minIdx = prices.indexOf(min);
+    const maxIdx = prices.indexOf(max);
 
     document.getElementById('min').textContent = min.toFixed(2);
     document.getElementById('max').textContent = max.toFixed(2);
     document.getElementById('average').textContent = average.toFixed(2);
     document.getElementById('median').textContent = median.toFixed(2);
+    document.getElementById('minWhen').textContent = `(${fullLabels[minIdx]})`;
+    document.getElementById('maxWhen').textContent = `(${fullLabels[maxIdx]})`;
 
     if (hasPrevData) {
         const prevPrices = prevData.map(entry => entry.price);
@@ -294,11 +298,15 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         const prevMax = Math.max(...prevPrices);
         const prevAverage = prevPrices.reduce((a, b) => a + b, 0) / prevPrices.length;
         const prevMedian = calculateMedian(prevPrices);
+        const prevMinIdx = prevPrices.indexOf(prevMin);
+        const prevMaxIdx = prevPrices.indexOf(prevMax);
 
         document.getElementById('prevMin').textContent = prevMin.toFixed(2);
         document.getElementById('prevMax').textContent = prevMax.toFixed(2);
         document.getElementById('prevAverage').textContent = prevAverage.toFixed(2);
         document.getElementById('prevMedian').textContent = prevMedian.toFixed(2);
+        document.getElementById('prevMinWhen').textContent = `(${prevFullLabels[prevMinIdx]})`;
+        document.getElementById('prevMaxWhen').textContent = `(${prevFullLabels[prevMaxIdx]})`;
         document.getElementById('prevStats').style.display = 'grid';
     } else {
         document.getElementById('prevStats').style.display = 'none';
