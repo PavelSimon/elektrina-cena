@@ -51,8 +51,9 @@ const hourGridPlugin = {
 
         cfg.data.forEach((entry, i) => {
             const period = parseInt(entry.period);
-            if (period === 1) return; // day boundary handled elsewhere
-            if (period % cfg.step !== 0) return;
+            if (period === 1) return; // day boundary
+            // period is 15-min slot (1..96); draw line every `step` quarter-hours
+            if ((period - 1) % cfg.step !== 0) return;
             const point = meta.data[i];
             if (!point) return;
             ctx.beginPath();
@@ -109,21 +110,31 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
 
     const hasPrevData = !prevData.error && prevData.length > 0;
 
+    // 15-minute periods: 1..96 per day. Convert to HH:MM.
+    const periodToTime = (period) => {
+        const p = parseInt(period) - 1;
+        const h = Math.floor(p / 4);
+        const m = (p % 4) * 15;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
     const labels = data.map((entry) => {
         const p = parseInt(entry.period);
         if (p === 1) return `${entry.deliveryDay}`;
-        if (intervalDays < 3 && (p === 6 || p === 12 || p === 18)) {
-            return `${String(p).padStart(2, '0')}:00`;
+        // Mark 06:00/12:00/18:00 when interval <3 days (periods 25/49/73)
+        if (intervalDays < 3 && (p === 25 || p === 49 || p === 73)) {
+            return periodToTime(p);
         }
         return '';
     });
 
-    // Sub-day dashed gridline step (hours): <3 days → every hour, <8 days → every 6h
-    const hourGridStep = intervalDays < 3 ? 1 : (intervalDays < 8 ? 6 : 0);
+    // Dashed sub-day gridlines. Step is in 15-min slots:
+    // <3 days → every hour (4 slots); <8 days → every 6h (24 slots); else off.
+    const hourGridStep = intervalDays < 3 ? 4 : (intervalDays < 8 ? 24 : 0);
 
     const prices = data.map(entry => entry.price);
 
-    const fullLabels = data.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
+    const fullLabels = data.map(entry => `${entry.deliveryDay} ${periodToTime(entry.period)}`);
 
     const weekendData = [];
     let currentWeekend = null;
@@ -169,7 +180,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     let prevFullLabels = [];
     if (hasPrevData) {
         const prevPrices = prevData.map(entry => entry.price);
-        prevFullLabels = prevData.map(entry => `${entry.deliveryDay} ${String(entry.period).padStart(2, '0')}:00`);
+        prevFullLabels = prevData.map(entry => `${entry.deliveryDay} ${periodToTime(entry.period)}`);
 
         datasets.push({
             label: `Predchádzajúce obdobie (${prevStartStr} - ${prevEndStr})`,
