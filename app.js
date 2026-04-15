@@ -33,6 +33,38 @@ const weekendBackgroundPlugin = {
     }
 };
 
+// Plugin to draw dashed vertical hour/sub-day gridlines
+const hourGridPlugin = {
+    id: 'hourGrid',
+    beforeDatasetsDraw: (chart) => {
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data || meta.data.length === 0) return;
+        const cfg = chart.data.datasets[0]._hourGrid;
+        if (!cfg || !cfg.step) return;
+
+        const ctx = chart.ctx;
+        const area = chart.chartArea;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(120, 120, 120, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+
+        cfg.data.forEach((entry, i) => {
+            const period = parseInt(entry.period);
+            if (period === 1) return; // day boundary handled elsewhere
+            if (period % cfg.step !== 0) return;
+            const point = meta.data[i];
+            if (!point) return;
+            ctx.beginPath();
+            ctx.moveTo(point.x, area.top);
+            ctx.lineTo(point.x, area.bottom);
+            ctx.stroke();
+        });
+
+        ctx.restore();
+    }
+};
+
 // Load dates from URL parameters on page load
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -77,12 +109,17 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
 
     const hasPrevData = !prevData.error && prevData.length > 0;
 
-    const labels = data.map((entry, index) => {
-        if (entry.period === 1 || entry.period === '1') {
-            return `${entry.deliveryDay}`;
+    const labels = data.map((entry) => {
+        const p = parseInt(entry.period);
+        if (p === 1) return `${entry.deliveryDay}`;
+        if (intervalDays < 3 && (p === 6 || p === 12 || p === 18)) {
+            return `${String(p).padStart(2, '0')}:00`;
         }
         return '';
     });
+
+    // Sub-day dashed gridline step (hours): <3 days → every hour, <8 days → every 6h
+    const hourGridStep = intervalDays < 3 ? 1 : (intervalDays < 8 ? 6 : 0);
 
     const prices = data.map(entry => entry.price);
 
@@ -125,7 +162,8 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         pointHoverBackgroundColor: 'rgb(75, 192, 192)',
         borderWidth: 1.5,
         spanGaps: false,
-        _weekendData: weekendData
+        _weekendData: weekendData,
+        _hourGrid: { step: hourGridStep, data: data }
     }];
 
     let prevFullLabels = [];
@@ -161,7 +199,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
             labels: labels,
             datasets: datasets
         },
-        plugins: [weekendBackgroundPlugin],
+        plugins: [weekendBackgroundPlugin, hourGridPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
