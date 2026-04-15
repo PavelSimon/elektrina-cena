@@ -1,0 +1,239 @@
+body {
+    padding: 20px;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+#backButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+#backButton:hover {
+    background-color: #0056b3;
+}
+
+#helpButton {
+    position: absolute;
+    top: 10px;
+    right: 90px;
+    padding: 10px 15px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+#helpButton:hover {
+    background-color: #218838;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 28px;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.modal-body {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #555;
+}
+
+.modal-body a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.modal-body a:hover {
+    text-decoration: underline;
+}
+
+h1 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    margin-bottom: 20px;
+}
+
+#dataForm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#dataForm label {
+    margin-right: 5px;
+}
+
+#dataForm input[type="date"] {
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#dataForm button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+#dataForm button:hover {
+    background-color: #0056b3;
+}
+
+#stats, #prevStats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+#stats p, #prevStats p {
+    margin: 0;
+    font-weight: bold;
+    text-align: center;
+}
+
+#stats span {
+    color: #007bff;
+    font-size: 1.2em;
+}
+
+#prevStats span {
+    color: #dc3545;
+    font-size: 1.2em;
+}
+
+#prevStats p:first-child {
+    grid-column: 1 / -1;
+    text-align: left;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 60vh;
+    min-height: 400px;
+    max-height: 800px;
+    margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    #backButton {
+        top: 5px;
+        right: 5px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+
+    #helpButton {
+        top: 5px;
+        right: 75px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+
+    .modal-content {
+        margin: 20% auto;
+        padding: 20px;
+        width: 95%;
+    }
+
+    .modal-body {
+        font-size: 1rem;
+    }
+
+    #dataForm {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #dataForm input[type="date"],
+    #dataForm button {
+        width: 100%;
+    }
+
+    #stats, #prevStats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .chart-container {
+        height: 50vh;
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    #stats, #prevStats {
+        grid-template-columns: 1fr;
+    }
+}
