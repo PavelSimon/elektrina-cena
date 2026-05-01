@@ -167,7 +167,8 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.1)',
-        tension: 0.1,
+        tension: 0,
+        stepped: 'after',
         pointRadius: 0,
         pointHoverRadius: 5,
         pointHoverBackgroundColor: 'rgb(75, 192, 192)',
@@ -188,7 +189,8 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
             fill: false,
             borderColor: 'rgb(255, 99, 132)',
             backgroundColor: 'rgba(255, 99, 132, 0.1)',
-            tension: 0.1,
+            tension: 0,
+            stepped: 'after',
             pointRadius: 0,
             pointHoverRadius: 5,
             pointHoverBackgroundColor: 'rgb(255, 99, 132)',
@@ -217,7 +219,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
             elements: {
                 line: {
                     borderWidth: 1.5,
-                    tension: 0.1
+                    tension: 0
                 },
                 point: {
                     radius: 0,
