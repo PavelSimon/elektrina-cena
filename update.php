@@ -7,6 +7,22 @@ try {
     $pdo = new PDO("sqlite:" . $db_file);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+    // Jednorazovo: UNIQUE index na (deliveryDay, period). Brani duplicitam a zrychluje api.php.
+    $has_index = $pdo->query(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_dam_day_period'"
+    )->fetchColumn();
+    if (!$has_index) {
+        $pdo->beginTransaction();
+        // Pripadne existujuce duplicity (ponecha sa najstarsi zaznam), inak by index nevznikol
+        $pdo->exec(
+            "DELETE FROM dam_results WHERE id NOT IN (
+                SELECT MIN(id) FROM dam_results GROUP BY deliveryDay, period
+            )"
+        );
+        $pdo->exec("CREATE UNIQUE INDEX idx_dam_day_period ON dam_results (deliveryDay, period)");
+        $pdo->commit();
+    }
+
     $stmt = $pdo->query("SELECT MAX(deliveryDay) AS last_date FROM dam_results");
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     $last_date = $result['last_date'] ? $result['last_date'] : '2009-09-01';
@@ -75,7 +91,7 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        "INSERT INTO dam_results (
+        "INSERT OR IGNORE INTO dam_results (
             deliveryDay, period, deliveryStart, deliveryEnd, publicationStatus,
             price, purchaseTotalVolume, purchaseSuccessfulVolume, purchaseUnsuccessfulVolume,
             saleTotalVolume, saleSuccessfulVolume, saleUnsuccessfulVolume,
@@ -139,9 +155,10 @@ try {
                 ':flowHuRo' => $entry['flowHuRo'],
                 ':flowRoHu' => $entry['flowRoHu']
             ]);
-            $inserted++;
+            // Duplicitny (deliveryDay, period) sa vdaka OR IGNORE preskoci, rowCount je vtedy 0
+            $inserted += $stmt->rowCount();
         } catch (PDOException $e) {
-            // Skip duplicates
+            // Chybny zaznam preskocime, ostatne sa vlozia
         }
     }
 

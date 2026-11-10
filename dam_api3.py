@@ -53,8 +53,28 @@ def create_database():
             flowRoHu REAL
         )
     ''')
+    ensure_unique_index(conn)
     conn.commit()
     conn.close()
+
+def ensure_unique_index(conn):
+    """Create the UNIQUE index on (deliveryDay, period) if it is missing.
+
+    Prevents duplicate rows and speeds up date-range queries.
+    """
+    exists = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_dam_day_period'"
+    ).fetchone()[0]
+    if exists:
+        return
+    # Remove existing duplicates (keep the oldest row), otherwise the index cannot be created
+    conn.execute('''
+        DELETE FROM dam_results WHERE id NOT IN (
+            SELECT MIN(id) FROM dam_results GROUP BY deliveryDay, period
+        )
+    ''')
+    conn.execute("CREATE UNIQUE INDEX idx_dam_day_period ON dam_results (deliveryDay, period)")
+    conn.commit()
 
 def fetch_data(date_from, date_to):
     """Fetch data from the API for a specific date range."""
@@ -82,7 +102,17 @@ def fetch_data(date_from, date_to):
 def save_data_to_db(dataframe):
     """Save fetched data to the SQLite database."""
     conn = sqlite3.connect(DATABASE)
-    dataframe.to_sql("dam_results", conn, if_exists="append", index=False)
+    ensure_unique_index(conn)
+    columns = list(dataframe.columns)
+    # Plain Python values (None instead of NaN) so sqlite3 can bind them
+    rows = dataframe.astype(object).where(dataframe.notna(), None).values.tolist()
+    # OR IGNORE skips rows whose (deliveryDay, period) is already stored
+    conn.executemany(
+        f"INSERT OR IGNORE INTO dam_results ({', '.join(columns)}) "
+        f"VALUES ({', '.join('?' for _ in columns)})",
+        rows,
+    )
+    conn.commit()
     print(f"Dáta v DB.")
     conn.close()
 
