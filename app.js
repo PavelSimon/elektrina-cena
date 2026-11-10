@@ -362,12 +362,73 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     }
 });
 
+// Calls update.php and returns its text output plus the number of inserted rows
+// (0 when nothing new, null when the output is not the usual "Vlozených: N").
+async function runUpdate() {
+    const response = await fetch('update.php', { cache: 'no-store' });
+    const text = (await response.text()).trim();
+    const match = text.match(/^Vlo[zž]en[ýy]ch:\s*(\d+)/);
+    return { text, inserted: match ? parseInt(match[1]) : null };
+}
+
 document.getElementById('updateData').addEventListener('click', async () => {
     document.getElementById('updateStatus').innerText = 'Updating data...';
-    const response = await fetch('update.php');
-    const result = await response.text();
-    document.getElementById('updateStatus').innerText = result;
+    const result = await runUpdate();
+    document.getElementById('updateStatus').innerText = result.text;
 });
+
+// Last delivery day that should already be published: today, or tomorrow
+// after 13:00 Slovak time (OKTE publishes next-day results around 13:00).
+function expectedLastDay() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Bratislava',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date());
+    const get = (type) => parseInt(parts.find(part => part.type === type).value);
+    const day = new Date(Date.UTC(get('year'), get('month') - 1, get('day')));
+    if (get('hour') >= 13) {
+        day.setUTCDate(day.getUTCDate() + 1);
+    }
+    return day.toISOString().split('T')[0];
+}
+
+const AUTO_UPDATE_KEY = 'damAutoUpdateAttempt';
+const AUTO_UPDATE_RETRY_MS = 15 * 60 * 1000;
+
+// Fallback for the cron job: when the page opens and the expected day is
+// missing in the database, fetch new data and redraw the chart.
+async function autoUpdate() {
+    const status = document.getElementById('updateStatus');
+    try {
+        const day = expectedLastDay();
+        const check = await fetch(`api.php?start_date=${day}&end_date=${day}`, { cache: 'no-store' });
+        const rows = await check.json();
+        if (rows.error || rows.length > 0) return; // up to date (or DB problem)
+
+        // Do not call OKTE on every page load while results are not published yet
+        const lastAttempt = parseInt(localStorage.getItem(AUTO_UPDATE_KEY) || '0');
+        if (Date.now() - lastAttempt < AUTO_UPDATE_RETRY_MS) return;
+        localStorage.setItem(AUTO_UPDATE_KEY, String(Date.now()));
+
+        status.innerText = 'Automaticky aktualizujem dáta...';
+        const result = await runUpdate();
+
+        if (result.inserted > 0) {
+            status.innerText = `Dáta boli automaticky aktualizované (nových záznamov: ${result.inserted}).`;
+            const form = document.getElementById('dataForm');
+            if (form.checkValidity()) form.requestSubmit(); // redraw shown chart
+        } else if (result.inserted === 0 || result.text.startsWith('Nie su')) {
+            status.innerText = ''; // not published yet
+        } else {
+            status.innerText = `Automatická aktualizácia zlyhala. ${result.text}`;
+        }
+    } catch (err) {
+        status.innerText = '';
+    }
+}
+
+window.addEventListener('DOMContentLoaded', autoUpdate);
 
 function shiftDateInterval(direction) {
     const startInput = document.getElementById('start_date');

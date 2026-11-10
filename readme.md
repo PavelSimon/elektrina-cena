@@ -12,6 +12,13 @@ Funkčný web interface prepísaný do PHP je na [Energiaweb.energy](https://ene
 
 Ak OKTE API neodpovie (napr. údržba, HTTP 503), proxy vráti `{"error": ..., "http_code": ...}` a `update.php` vypíše `Chyba: ... (OKTE HTTP 503)` bez zápisu do databázy. Aktualizáciu stačí zopakovať neskôr.
 
+## Automatická aktualizácia
+
+Dáta sa aktualizujú dvoma cestami, ručné tlačidlo ostáva ako tretia:
+
+- **Cron na hostingu** (Websupport WebAdmin) volá `update.php` denne po 13:00, keď OKTE zverejní ceny na ďalší deň.
+- **Poistka pri otvorení stránky** (`autoUpdate` v `app.js`): stránka cez `api.php` zistí, či je v databáze očakávaný posledný deň (dnes, po 13:00 slovenského času zajtra). Ak chýba, zavolá `update.php` a po vložení nových dát prekreslí zobrazený graf. Pokus sa v jednom prehliadači opakuje najskôr po 15 minútach (kľúč `damAutoUpdateAttempt` v localStorage), aby sa OKTE nevolalo pri každom načítaní.
+
 ## Databáza
 
 Tabuľka `dam_results` má UNIQUE index `idx_dam_day_period` na `(deliveryDay, period)`. Bráni duplicitným záznamom pri opakovanej aktualizácii a zrýchľuje dopyty podľa dátumu v `api.php`.
