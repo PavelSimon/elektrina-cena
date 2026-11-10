@@ -10,6 +10,8 @@ Funkčný web interface prepísaný do PHP je na [Energiaweb.energy](https://ene
 
 **update.php** - aktualizuje databázu cez proxy (OKTE API blokuje niektoré hostingy)
 
+Ak OKTE API neodpovie (napr. údržba, HTTP 503), proxy vráti `{"error": ..., "http_code": ...}` a `update.php` vypíše `Chyba: ... (OKTE HTTP 503)` bez zápisu do databázy. Aktualizáciu stačí zopakovať neskôr.
+
 **proxy.php** - proxy skript na creativespace.sk pre presmerovanie API volaní
 
 ## Frontend (index.html)

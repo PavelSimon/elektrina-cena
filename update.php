@@ -50,7 +50,6 @@ try {
                 CURLOPT_HTTPHEADER => ['Accept: application/json']
             ]);
             $response = curl_exec($ch);
-            curl_close($ch);
         }
     }
 
@@ -61,6 +60,18 @@ try {
     $data = json_decode($response, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         throw new Exception("JSON parse error: " . json_last_error_msg());
+    }
+
+    // Proxy pri chybe vracia objekt {"error": ..., "http_code": ...}, nie zoznam zaznamov
+    if (!is_array($data) || isset($data['error'])) {
+        $msg = is_array($data) ? $data['error'] : 'neocakavana odpoved';
+        if (is_array($data) && isset($data['http_code'])) {
+            $msg .= " (OKTE HTTP " . $data['http_code'] . ")";
+            if ((int) $data['http_code'] === 503) {
+                $msg .= " - OKTE je docasne nedostupne (udrzba), skuste neskor";
+            }
+        }
+        throw new Exception($msg);
     }
 
     $stmt = $pdo->prepare(
@@ -87,6 +98,9 @@ try {
 
     $inserted = 0;
     foreach ($data as $entry) {
+        if (!is_array($entry) || !isset($entry['deliveryDay'])) {
+            continue;
+        }
         try {
             $stmt->execute([
                 ':deliveryDay' => $entry['deliveryDay'],
