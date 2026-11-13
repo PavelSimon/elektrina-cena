@@ -119,12 +119,105 @@ window.addEventListener('DOMContentLoaded', () => {
     const startDate = urlParams.get('start_date');
     const endDate = urlParams.get('end_date');
 
+    // Optional comparison period: one of comp_start / comp_end
+    const compStart = urlParams.get('comp_start');
+    const compEnd = urlParams.get('comp_end');
+    if (compStart) {
+        compAnchor = { type: 'start', date: compStart };
+    } else if (compEnd) {
+        compAnchor = { type: 'end', date: compEnd };
+    }
+
     if (startDate && endDate) {
         document.getElementById('start_date').value = startDate;
         document.getElementById('end_date').value = endDate;
         document.getElementById('dataForm').requestSubmit();
     }
 });
+
+// Comparison period. null = automatic (the interval right before the main
+// one); otherwise the date the user entered and which end of the period it is.
+// The other end is always derived from the length of the main interval.
+let compAnchor = null;
+
+function addDays(dateStr, days) {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().split('T')[0];
+}
+
+function comparisonPeriod(mainStart, intervalDays) {
+    if (!compAnchor) {
+        const end = addDays(mainStart, -1);
+        return { start: addDays(end, -(intervalDays - 1)), end };
+    }
+    if (compAnchor.type === 'start') {
+        return { start: compAnchor.date, end: addDays(compAnchor.date, intervalDays - 1) };
+    }
+    return { start: addDays(compAnchor.date, -(intervalDays - 1)), end: compAnchor.date };
+}
+
+// Show the period actually used in the two inputs and say how it was derived
+function showComparisonPeriod(period) {
+    document.getElementById('comp_start').value = period.start;
+    document.getElementById('comp_end').value = period.end;
+    document.getElementById('compareRow').classList.toggle('auto', !compAnchor);
+    document.getElementById('compHint').textContent = !compAnchor
+        ? 'automaticky: obdobie tesne pred hlavným'
+        : (compAnchor.type === 'start'
+            ? 'zadaný začiatok, koniec dopočítaný podľa dĺžky hlavného obdobia'
+            : 'zadaný koniec, začiatok dopočítaný podľa dĺžky hlavného obdobia');
+}
+
+function redrawIfReady() {
+    const form = document.getElementById('dataForm');
+    if (form.checkValidity()) form.requestSubmit();
+}
+
+['start', 'end'].forEach((type) => {
+    document.getElementById(`comp_${type}`).addEventListener('change', (e) => {
+        // Emptying the field returns to the automatic period
+        compAnchor = e.target.value ? { type, date: e.target.value } : null;
+        redrawIfReady();
+    });
+});
+
+document.getElementById('compAuto').addEventListener('click', () => {
+    compAnchor = null;
+    showComparisonPeriod({ start: '', end: '' });
+    redrawIfReady();
+});
+
+// Day with the largest difference between its highest and lowest price
+function maxDailySpread(rows) {
+    const days = new Map();
+    rows.forEach((entry) => {
+        const day = days.get(entry.deliveryDay);
+        if (!day) {
+            days.set(entry.deliveryDay, { min: entry.price, max: entry.price });
+        } else {
+            day.min = Math.min(day.min, entry.price);
+            day.max = Math.max(day.max, entry.price);
+        }
+    });
+    let best = null;
+    days.forEach((range, day) => {
+        const spread = range.max - range.min;
+        if (!best || spread > best.spread) {
+            best = { day, spread, min: range.min, max: range.max };
+        }
+    });
+    return best;
+}
+
+// Fills the "max daily spread" statistic; elementId/whenId are the two spans
+function showSpread(elementId, whenId, rows) {
+    const best = maxDailySpread(rows);
+    document.getElementById(elementId).textContent = best ? best.spread.toFixed(2) : '';
+    document.getElementById(whenId).textContent = best
+        ? `(${best.day}: ${best.min.toFixed(2)} – ${best.max.toFixed(2)})`
+        : '';
+}
 
 document.getElementById('dataForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -144,13 +237,10 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     const endDateObj = new Date(end_date);
     const intervalDays = Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
 
-    const prevEndDate = new Date(startDateObj);
-    prevEndDate.setDate(prevEndDate.getDate() - 1);
-    const prevStartDate = new Date(prevEndDate);
-    prevStartDate.setDate(prevStartDate.getDate() - intervalDays + 1);
-
-    const prevStartStr = prevStartDate.toISOString().split('T')[0];
-    const prevEndStr = prevEndDate.toISOString().split('T')[0];
+    const comparison = comparisonPeriod(start_date, intervalDays);
+    showComparisonPeriod(comparison);
+    const prevStartStr = comparison.start;
+    const prevEndStr = comparison.end;
 
     const prevResponse = await fetch(`api.php?start_date=${prevStartStr}&end_date=${prevEndStr}`);
     const prevData = await prevResponse.json();
@@ -230,7 +320,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         prevFullLabels = prevData.map(entry => intervalLabel(entry, intervalTimes(entry)));
 
         datasets.push({
-            label: `Predchádzajúce obdobie (${prevStartStr} - ${prevEndStr})`,
+            label: `Porovnávacie obdobie (${prevStartStr} - ${prevEndStr})`,
             data: closeLastStep(prevPrices),
             fill: false,
             borderColor: 'rgb(255, 99, 132)',
@@ -387,6 +477,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     document.getElementById('median').textContent = median.toFixed(2);
     document.getElementById('minWhen').textContent = `(${fullLabels[minIdx]})`;
     document.getElementById('maxWhen').textContent = `(${fullLabels[maxIdx]})`;
+    showSpread('spread', 'spreadWhen', data);
 
     if (hasPrevData) {
         const prevPrices = prevData.map(entry => entry.price);
@@ -403,6 +494,8 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         document.getElementById('prevMedian').textContent = prevMedian.toFixed(2);
         document.getElementById('prevMinWhen').textContent = `(${prevFullLabels[prevMinIdx]})`;
         document.getElementById('prevMaxWhen').textContent = `(${prevFullLabels[prevMaxIdx]})`;
+        showSpread('prevSpread', 'prevSpreadWhen', prevData);
+        document.getElementById('prevRange').textContent = `${prevStartStr} – ${prevEndStr}`;
         document.getElementById('prevStats').style.display = 'grid';
     } else {
         document.getElementById('prevStats').style.display = 'none';

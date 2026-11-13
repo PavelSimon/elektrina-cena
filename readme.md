@@ -37,7 +37,13 @@ Graf (Chart.js) je schodovitý (`stepped: 'before'`, v Chart.js to znamená drž
 
 Tooltip aj časy pri Min/Max ukazujú celý interval (`2026-11-10 15:45 – 16:00`). Tooltip patrí intervalu, v ktorom je kurzor, nie najbližšiemu bodu. Vedľajšie vlastnosti:
 
-- Stat. panely zobrazujú Min/Max aj s časom výskytu (HH:MM) pre aktuálne aj predchádzajúce obdobie.
+- Stat. panely zobrazujú Min/Max aj s intervalom výskytu pre hlavné aj porovnávacie obdobie.
+- **Max. denný rozdiel**: pre každý deň obdobia sa vypočíta rozdiel medzi najvyššou a najnižšou cenou a zobrazí sa deň s najväčším rozdielom, napr. `435.16 € (2026-11-09: 201.99 – 637.15)`.
+- **Porovnávacie obdobie** (druhá, čiarkovaná krivka) sa zadáva v riadku pod hlavnými dátumami:
+  - Stačí zadať začiatok alebo koniec, druhý dátum sa dopočíta podľa dĺžky hlavného obdobia. Platí naposledy zmenené pole.
+  - Ak nie je zadané nič, použije sa obdobie tesne pred hlavným (dnešok sa porovná so včerajškom). Automaticky doplnené dátumy sú sivé.
+  - Zadaný dátum ostáva pevný aj pri posúvaní hlavného obdobia šípkami; pri zmene dĺžky hlavného obdobia sa druhý koniec prepočíta. Tlačidlo Automaticky alebo vymazanie poľa vráti predvolené správanie.
+  - V URL sa dá odovzdať ako `comp_start=YYYY-MM-DD` alebo `comp_end=YYYY-MM-DD` popri `start_date` a `end_date`.
 - Pod grafom sú dátumy dní (perióda 1 každého dňa).
 - Ak je zvolený interval **kratší než 3 dni**, na osi X pribudnú popisy `06:00 / 12:00 / 18:00` a každá hodina sa zvýrazní čiarkovanou zvislou čiarou.
 - Ak je interval **kratší než 8 dní**, zvislé čiarkované čiary sa kreslia každých 6 hodín.

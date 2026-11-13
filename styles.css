@@ -141,9 +141,50 @@ h1 {
     background-color: #0056b3;
 }
 
+#compareRow {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+#compareRow .compare-title {
+    font-weight: bold;
+    color: #dc3545;
+}
+
+#compareRow small {
+    color: #666;
+}
+
+/* Dates filled in automatically, not typed by the user */
+#compareRow.auto input[type="date"] {
+    color: #888;
+    background-color: #f3f3f3;
+}
+
+#dataForm #compAuto {
+    background-color: #6c757d;
+}
+
+#dataForm #compAuto:hover {
+    background-color: #565e64;
+}
+
+#compareRow.auto #compAuto {
+    display: none;
+}
+
+#prevStats .range {
+    color: #666;
+    font-size: 1em;
+    font-weight: normal;
+}
+
 #stats, #prevStats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 15px;
     margin: 20px 0;
     padding: 15px;
