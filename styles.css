@@ -110,16 +110,41 @@ h1 {
     margin-bottom: 20px;
 }
 
+/* Grid: lead cell | label | date | label | date | actions.
+   Both rows (main and comparison period) share the columns, so the
+   date inputs line up vertically. */
 #dataForm {
+    display: grid;
+    grid-template-columns: auto auto auto auto auto 1fr;
+    gap: 8px 10px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#dataForm label {
+    margin: 0;
+    text-align: right;
+}
+
+#dataForm .cell-lead,
+#dataForm .cell-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
-    margin-bottom: 20px;
 }
 
-#dataForm label {
-    margin-right: 5px;
+#dataForm .cell-lead {
+    justify-content: flex-end;
+}
+
+#updateStatus {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+#updateStatus:empty {
+    display: none;
 }
 
 #dataForm input[type="date"] {
@@ -141,12 +166,9 @@ h1 {
     background-color: #0056b3;
 }
 
+/* Children take part in the form grid directly */
 #compareRow {
-    flex-basis: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
+    display: contents;
 }
 
 #compareRow .compare-title {
@@ -176,20 +198,19 @@ h1 {
     display: none;
 }
 
-#prevStats .range {
-    color: #666;
-    font-size: 1em;
-    font-weight: normal;
-}
-
+/* Compact stat panels: title | Min | Max | Priemer | Median | Max. denný rozdiel.
+   Each cell is at most two lines: value, then when it occurred. */
 #stats, #prevStats {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 15px;
-    margin: 20px 0;
-    padding: 15px;
+    grid-template-columns: 1.1fr 1fr 1fr 0.8fr 0.8fr 1.3fr;
+    gap: 4px 12px;
+    align-items: start;
+    margin: 8px 0;
+    padding: 6px 12px;
     background-color: #f8f9fa;
     border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.25;
 }
 
 #stats p, #prevStats p {
@@ -198,19 +219,27 @@ h1 {
     text-align: center;
 }
 
+#stats small, #prevStats small {
+    display: block;
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #555;
+    white-space: nowrap;
+}
+
 #stats span {
     color: #007bff;
-    font-size: 1.2em;
+    font-size: 1.1em;
 }
 
 #prevStats span {
     color: #dc3545;
-    font-size: 1.2em;
+    font-size: 1.1em;
 }
 
-#prevStats p:first-child {
-    grid-column: 1 / -1;
+#stats .stats-title, #prevStats .stats-title {
     text-align: left;
+    color: #666;
 }
 
 .chart-container {
@@ -252,8 +281,17 @@ h1 {
     }
 
     #dataForm {
+        display: flex;
         flex-direction: column;
         align-items: stretch;
+    }
+
+    #dataForm label {
+        text-align: left;
+    }
+
+    #dataForm .cell-lead {
+        justify-content: flex-start;
     }
 
     #dataForm input[type="date"],
@@ -263,8 +301,16 @@ h1 {
 
     #stats, #prevStats {
         grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        padding: 10px;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    #stats .stats-title, #prevStats .stats-title {
+        grid-column: 1 / -1;
+    }
+
+    #stats small, #prevStats small {
+        white-space: normal;
     }
 
     .chart-container {

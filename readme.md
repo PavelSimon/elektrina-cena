@@ -48,3 +48,4 @@ Tooltip aj časy pri Min/Max ukazujú celý interval (`2026-11-10 15:45 – 16:0
 - Ak je zvolený interval **kratší než 3 dni**, na osi X pribudnú popisy `06:00 / 12:00 / 18:00` a každá hodina sa zvýrazní čiarkovanou zvislou čiarou.
 - Ak je interval **kratší než 8 dní**, zvislé čiarkované čiary sa kreslia každých 6 hodín.
 - Víkendy sú jemne podfarbené.
+- Formulár je CSS grid: dátumy hlavného a porovnávacieho obdobia sú v rovnakých stĺpcoch pod sebou. Panely štatistík sú jednoriadkové (názov obdobia s rozsahom, potom hodnoty; pod hodnotou malým písmom kedy nastala).

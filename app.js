@@ -163,10 +163,10 @@ function showComparisonPeriod(period) {
     document.getElementById('comp_end').value = period.end;
     document.getElementById('compareRow').classList.toggle('auto', !compAnchor);
     document.getElementById('compHint').textContent = !compAnchor
-        ? 'automaticky: obdobie tesne pred hlavným'
+        ? 'automaticky: obdobie pred hlavným'
         : (compAnchor.type === 'start'
-            ? 'zadaný začiatok, koniec dopočítaný podľa dĺžky hlavného obdobia'
-            : 'zadaný koniec, začiatok dopočítaný podľa dĺžky hlavného obdobia');
+            ? 'zadaný začiatok, koniec dopočítaný'
+            : 'zadaný koniec, začiatok dopočítaný');
 }
 
 function redrawIfReady() {
@@ -478,6 +478,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
     document.getElementById('minWhen').textContent = `(${fullLabels[minIdx]})`;
     document.getElementById('maxWhen').textContent = `(${fullLabels[maxIdx]})`;
     showSpread('spread', 'spreadWhen', data);
+    document.getElementById('mainRange').textContent = `${start_date} – ${end_date}`;
 
     if (hasPrevData) {
         const prevPrices = prevData.map(entry => entry.price);
