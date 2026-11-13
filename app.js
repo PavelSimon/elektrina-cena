@@ -214,7 +214,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.1)',
         tension: 0,
-        stepped: 'after', // price is constant for the whole delivery interval
+        stepped: 'before', // Chart.js: hold each price until the next point (whole delivery interval)
         pointRadius: 0,
         pointHoverRadius: 5,
         pointHoverBackgroundColor: 'rgb(75, 192, 192)',
@@ -236,7 +236,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
             borderColor: 'rgb(255, 99, 132)',
             backgroundColor: 'rgba(255, 99, 132, 0.1)',
             tension: 0,
-            stepped: 'after',
+            stepped: 'before',
             pointRadius: 0,
             pointHoverRadius: 5,
             pointHoverBackgroundColor: 'rgb(255, 99, 132)',

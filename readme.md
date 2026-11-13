@@ -31,7 +31,7 @@ Index si `update.php` aj Python skripty (`dam_api3.py`) vytvoria samy pri prvom 
 
 Štruktúra je rozdelená na `index.html` + `styles.css` + `app.js`. Pri zmene v `app.js` alebo `styles.css` zvýš `?v=N` v `index.html`, aby prehliadač obišiel cache.
 
-Graf (Chart.js) je schodovitý (`stepped: 'after'`): cena je počas celého intervalu dodávky vodorovná čiara a mení sa až na jeho hranici. Posledný interval uzatvára pomocný bod navyše, aby sa vykreslil celý.
+Graf (Chart.js) je schodovitý (`stepped: 'before'`, v Chart.js to znamená držať hodnotu bodu až po nasledujúci bod): cena je počas celého intervalu dodávky vodorovná čiara a mení sa až na jeho hranici. Posledný interval uzatvára pomocný bod navyše, aby sa vykreslil celý.
 
 Časy intervalov sa berú zo skutočných časových značiek OKTE (`deliveryStart`, `deliveryEnd` v UTC, vracia ich `api.php`) a prepočítavajú sa na slovenský čas. Perióda 1 je 00:00 – 00:15, perióda 96 je 23:45 – 00:00, rovnako ako v tabuľke [Celkové výsledky DT](https://okte.sk/sk/kratkodoby-trh/zverejnenie-udajov-dt/celkove-vysledky-dt/). Vďaka tomu sedia aj hodinové dáta spred 1. 10. 2025 (24 periód za deň) a dni so zmenou času (92 alebo 100 periód, pri hodinových dátach 23 alebo 25).
 
