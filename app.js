@@ -17,7 +17,8 @@ const weekendBackgroundPlugin = {
         data.forEach(weekend => {
             if (weekend.startIndex !== undefined && weekend.endIndex !== undefined) {
                 const startPoint = meta.data[weekend.startIndex];
-                const endPoint = meta.data[weekend.endIndex];
+                // Step chart: the last interval runs up to the following point
+                const endPoint = meta.data[weekend.endIndex + 1] || meta.data[weekend.endIndex];
 
                 if (startPoint && endPoint) {
                     const x1 = startPoint.x;
@@ -40,7 +41,7 @@ const hourGridPlugin = {
         const meta = chart.getDatasetMeta(0);
         if (!meta || !meta.data || meta.data.length === 0) return;
         const cfg = chart.data.datasets[0]._hourGrid;
-        if (!cfg || !cfg.step) return;
+        if (!cfg || !cfg.stepMinutes) return;
 
         const ctx = chart.ctx;
         const area = chart.chartArea;
@@ -52,8 +53,8 @@ const hourGridPlugin = {
         cfg.data.forEach((entry, i) => {
             const period = parseInt(entry.period);
             if (period === 1) return; // day boundary
-            // period is 15-min slot (1..96); draw line every `step` quarter-hours
-            if ((period - 1) % cfg.step !== 0) return;
+            // draw a line where the interval starts on a multiple of `stepMinutes`
+            if (cfg.minutes[i] % cfg.stepMinutes !== 0) return;
             const point = meta.data[i];
             if (!point) return;
             ctx.beginPath();
@@ -65,6 +66,52 @@ const hourGridPlugin = {
         ctx.restore();
     }
 };
+
+// Interaction mode for the step chart: pick the interval the cursor is in
+// (the point at or left of the cursor), not the nearest point.
+Chart.Interaction.modes.stepInterval = function (chart, e) {
+    const area = chart.chartArea;
+    const count = chart.data.labels.length;
+    if (count < 2 || e.x < area.left || e.x > area.right || e.y < area.top || e.y > area.bottom) {
+        return [];
+    }
+    const xScale = chart.scales.x;
+    let index = Math.floor(((e.x - xScale.left) / xScale.width) * (count - 1));
+    index = Math.max(0, Math.min(count - 2, index)); // last point only closes the final step
+
+    const items = [];
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+        if (!chart.isDatasetVisible(datasetIndex)) return;
+        const element = chart.getDatasetMeta(datasetIndex).data[index];
+        if (element && index < dataset.data.length - 1) {
+            items.push({ element, datasetIndex, index });
+        }
+    });
+    return items;
+};
+
+// Local (Slovak) HH:MM of a delivery timestamp; OKTE sends them in UTC.
+const localTimeFormat = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Bratislava', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+});
+
+// Start and end of the delivery interval as HH:MM. Uses the real timestamps,
+// so hourly data (before 2025-10-01), 15-minute data and clock-change days
+// are all labelled correctly. Falls back to 15-minute slots without them.
+function intervalTimes(entry) {
+    if (entry.deliveryStart && entry.deliveryEnd) {
+        return {
+            start: localTimeFormat.format(new Date(entry.deliveryStart)),
+            end: localTimeFormat.format(new Date(entry.deliveryEnd))
+        };
+    }
+    const toTime = (slot) => {
+        const h = Math.floor(slot / 4) % 24;
+        return `${String(h).padStart(2, '0')}:${String((slot % 4) * 15).padStart(2, '0')}`;
+    };
+    const p = parseInt(entry.period);
+    return { start: toTime(p - 1), end: toTime(p) };
+}
 
 // Load dates from URL parameters on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -110,31 +157,30 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
 
     const hasPrevData = !prevData.error && prevData.length > 0;
 
-    // 15-minute periods: 1..96 per day. Convert to HH:MM.
-    const periodToTime = (period) => {
-        const p = parseInt(period) - 1;
-        const h = Math.floor(p / 4);
-        const m = (p % 4) * 15;
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    };
+    const times = data.map(intervalTimes);
+    // Minute of the day at which each interval starts (local time)
+    const startMinutes = times.map(t => parseInt(t.start.slice(0, 2)) * 60 + parseInt(t.start.slice(3)));
+    const intervalLabel = (entry, t) => `${entry.deliveryDay} ${t.start} – ${t.end}`;
 
-    const labels = data.map((entry) => {
-        const p = parseInt(entry.period);
-        if (p === 1) return `${entry.deliveryDay}`;
-        // Mark 06:00/12:00/18:00 when interval <3 days (periods 25/49/73)
-        if (intervalDays < 3 && (p === 25 || p === 49 || p === 73)) {
-            return periodToTime(p);
+    const labels = data.map((entry, i) => {
+        if (parseInt(entry.period) === 1) return `${entry.deliveryDay}`;
+        // Mark 06:00/12:00/18:00 when interval <3 days
+        if (intervalDays < 3 && ['06:00', '12:00', '18:00'].includes(times[i].start)) {
+            return times[i].start;
         }
         return '';
     });
+    // Extra point that closes the last step, so the final interval is drawn
+    // as a horizontal segment up to its end time.
+    labels.push('');
 
-    // Dashed sub-day gridlines. Step is in 15-min slots:
-    // <3 days → every hour (4 slots); <8 days → every 6h (24 slots); else off.
-    const hourGridStep = intervalDays < 3 ? 4 : (intervalDays < 8 ? 24 : 0);
+    // Dashed sub-day gridlines: <3 days → every hour; <8 days → every 6 h; else off.
+    const hourGridStepMinutes = intervalDays < 3 ? 60 : (intervalDays < 8 ? 360 : 0);
 
     const prices = data.map(entry => entry.price);
+    const closeLastStep = (values) => values.length ? [...values, values[values.length - 1]] : values;
 
-    const fullLabels = data.map(entry => `${entry.deliveryDay} ${periodToTime(entry.period)}`);
+    const fullLabels = data.map((entry, i) => intervalLabel(entry, times[i]));
 
     const weekendData = [];
     let currentWeekend = null;
@@ -163,32 +209,34 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
 
     const datasets = [{
         label: `Aktuálne obdobie (${start_date} - ${end_date})`,
-        data: prices,
+        data: closeLastStep(prices),
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.1)',
-        tension: 0.1,
+        tension: 0,
+        stepped: 'after', // price is constant for the whole delivery interval
         pointRadius: 0,
         pointHoverRadius: 5,
         pointHoverBackgroundColor: 'rgb(75, 192, 192)',
         borderWidth: 1.5,
         spanGaps: false,
         _weekendData: weekendData,
-        _hourGrid: { step: hourGridStep, data: data }
+        _hourGrid: { stepMinutes: hourGridStepMinutes, data: data, minutes: startMinutes }
     }];
 
     let prevFullLabels = [];
     if (hasPrevData) {
         const prevPrices = prevData.map(entry => entry.price);
-        prevFullLabels = prevData.map(entry => `${entry.deliveryDay} ${periodToTime(entry.period)}`);
+        prevFullLabels = prevData.map(entry => intervalLabel(entry, intervalTimes(entry)));
 
         datasets.push({
             label: `Predchádzajúce obdobie (${prevStartStr} - ${prevEndStr})`,
-            data: prevPrices,
+            data: closeLastStep(prevPrices),
             fill: false,
             borderColor: 'rgb(255, 99, 132)',
             backgroundColor: 'rgba(255, 99, 132, 0.1)',
-            tension: 0.1,
+            tension: 0,
+            stepped: 'after',
             pointRadius: 0,
             pointHoverRadius: 5,
             pointHoverBackgroundColor: 'rgb(255, 99, 132)',
@@ -217,7 +265,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
             elements: {
                 line: {
                     borderWidth: 1.5,
-                    tension: 0.1
+                    tension: 0
                 },
                 point: {
                     radius: 0,
@@ -250,7 +298,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
                     }
                 },
                 tooltip: {
-                    mode: 'index',
+                    mode: 'stepInterval',
                     intersect: false,
                     callbacks: {
                         title: function(context) {
@@ -312,8 +360,7 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
                 }
             },
             interaction: {
-                mode: 'nearest',
-                axis: 'x',
+                mode: 'stepInterval',
                 intersect: false
             }
         }
@@ -366,6 +413,9 @@ document.getElementById('dataForm').addEventListener('submit', async (e) => {
 // (0 when nothing new, null when the output is not the usual "Vlozených: N").
 async function runUpdate() {
     const response = await fetch('update.php', { cache: 'no-store' });
+    if (!response.ok) {
+        return { text: `Chyba: update.php vrátil HTTP ${response.status}`, inserted: null };
+    }
     const text = (await response.text()).trim();
     const match = text.match(/^Vlo[zž]en[ýy]ch:\s*(\d+)/);
     return { text, inserted: match ? parseInt(match[1]) : null };

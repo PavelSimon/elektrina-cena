@@ -10,7 +10,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $stmt = $pdo->prepare(
-        "SELECT deliveryDay, period, price FROM dam_results WHERE deliveryDay BETWEEN :start_date AND :end_date ORDER BY deliveryDay, period"
+        "SELECT deliveryDay, period, price, deliveryStart, deliveryEnd FROM dam_results WHERE deliveryDay BETWEEN :start_date AND :end_date ORDER BY deliveryDay, period"
     );
     $stmt->execute([':start_date' => $start_date, ':end_date' => $end_date]);
 
